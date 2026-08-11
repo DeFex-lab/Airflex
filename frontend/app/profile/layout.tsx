@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 
-export default function SellLayout({ children }: { children: ReactNode }) {
+export default function ProfileLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col dark:bg-gray-900">
-      <main className="flex-1 mx-auto w-full max-w-2xl px-4 py-12 sm:px-6">
+      <main className="flex-1 mx-auto w-full max-w-4xl px-4 py-12 sm:px-6">
         {children}
       </main>
 

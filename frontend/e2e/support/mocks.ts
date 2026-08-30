@@ -162,6 +162,19 @@ export async function mockAuth(page: Page) {
   );
 }
 
+/** Stub the signed-in user's profile. */
+export async function mockProfile(page: Page, profile: { kycStatus?: string } = {}) {
+  await page.route(`${API_URL}/api/v1/profile`, (route) =>
+    json(route, {
+      data: {
+        id: "user_e2e",
+        kycStatus: "verified",
+        ...profile,
+      },
+    }),
+  );
+}
+
 /** Stub listing creation, returning the trade id the confirmation shows. */
 export async function mockCreateListing(page: Page, tradeId = TEST_TRADE.id) {
   await page.route(`${API_URL}/api/v1/trades`, (route) => {

@@ -39,7 +39,7 @@ function validStartupEnv(): NodeJS.ProcessEnv {
     NODE_ENV: 'production',
     JEST_WORKER_ID: undefined,
     NODE_OPTIONS: undefined,
-    DOTENV_CONFIG_PATH: undefined,
+    DOTENV_CONFIG_PATH: path.join(__dirname, 'missing.env'),
     DATABASE_URL: 'postgres://localhost/test',
     JWT_SECRET: 'test-secret',
     ENCRYPTION_KEY: 'a'.repeat(64),

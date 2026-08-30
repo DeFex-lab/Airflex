@@ -365,7 +365,7 @@ export default function TradeDetailClient({ trade }: Props) {
           How this works
         </p>
         <ol className="mt-2 flex flex-col gap-1 text-sm text-violet-800 list-decimal list-inside dark:text-violet-300">
-          <li>Click "Buy Now" to lock your funds in a Soroban escrow contract.</li>
+          <li>Click &quot;Buy Now&quot; to lock your funds in a Soroban escrow contract.</li>
           <li>The seller delivers your {formatAssetType(trade.asset_type)}.</li>
           <li>Platform confirms delivery and releases the payment to the seller.</li>
         </ol>

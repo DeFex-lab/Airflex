@@ -4,7 +4,7 @@
 extern crate alloc;
 
 use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short, token, Address, Env, Symbol, Vec,
+    contract, contractimpl, contracttype, symbol_short, token, Address, Env, Symbol,
 };
 
 // ---------------------------------------------------------------------------
@@ -116,7 +116,8 @@ fn topic_disputed() -> Symbol {
 // ---------------------------------------------------------------------------
 
 fn require_not_paused(env: &Env) {
-    if env.storage()
+    if env
+        .storage()
         .instance()
         .get(&DataKey::Paused)
         .unwrap_or(false)
@@ -173,20 +174,26 @@ impl EscrowContract {
         env.storage().instance().set(&DataKey::Token, &token);
         env.storage().instance().set(&DataKey::TradeCount, &0u64);
         env.storage().instance().set(&DataKey::Paused, &false);
-        env.storage().instance().set(&DataKey::AllowedToken(token), &true);
+        env.storage()
+            .instance()
+            .set(&DataKey::AllowedToken(token), &true);
         env.storage().instance().extend_ttl(17_280, 17_280 * 30);
     }
 
     pub fn add_allowed_token(env: Env, token: Address) {
         let admin = get_admin_address(&env);
         admin.require_auth();
-        env.storage().instance().set(&DataKey::AllowedToken(token), &true);
+        env.storage()
+            .instance()
+            .set(&DataKey::AllowedToken(token), &true);
     }
 
     pub fn remove_allowed_token(env: Env, token: Address) {
         let admin = get_admin_address(&env);
         admin.require_auth();
-        env.storage().instance().remove(&DataKey::AllowedToken(token));
+        env.storage()
+            .instance()
+            .remove(&DataKey::AllowedToken(token));
     }
 
     pub fn pause(env: Env) {
@@ -219,7 +226,11 @@ impl EscrowContract {
         require_not_paused(&env);
 
         let token = get_token_address(&env);
-        if !env.storage().instance().has(&DataKey::AllowedToken(token.clone())) {
+        if !env
+            .storage()
+            .instance()
+            .has(&DataKey::AllowedToken(token.clone()))
+        {
             panic!("unsupported token");
         }
 
@@ -422,7 +433,7 @@ mod test {
         let token_id = env.register_stellar_asset_contract_v2(token_admin);
         let token_address = token_id.address();
         let sac = StellarAssetClient::new(&env, &token_address);
-        sac.mint(&buyer, &10_000_0000000i128);
+        sac.mint(&buyer, &100_000_000_000_i128);
 
         client.initialize(&admin, &token_address);
 
@@ -471,10 +482,7 @@ mod test {
         assert_eq!(trade.buyer, Some(buyer));
 
         let token_client = TokenClient::new(&env, &token);
-        assert_eq!(
-            token_client.balance(&env.current_contract_address()),
-            500_0000000i128
-        );
+        assert_eq!(token_client.balance(&client.address), 500_0000000i128);
     }
 
     #[test]
@@ -518,7 +526,7 @@ mod test {
         assert_eq!(trade.status, TradeStatus::Cancelled);
 
         let token_client = TokenClient::new(&env, &token);
-        assert_eq!(token_client.balance(&buyer), 10_000_0000000i128);
+        assert_eq!(token_client.balance(&buyer), 100_000_000_000_i128);
     }
 
     #[test]
@@ -557,7 +565,7 @@ mod test {
         assert_eq!(trade.status, TradeStatus::Cancelled);
 
         let token_client = TokenClient::new(&env, &token);
-        assert_eq!(token_client.balance(&buyer), 10_000_0000000i128);
+        assert_eq!(token_client.balance(&buyer), 100_000_000_000_i128);
     }
 
     #[test]

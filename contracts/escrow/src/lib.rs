@@ -4,7 +4,8 @@
 extern crate alloc;
 
 use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short, token, Address, Env, Symbol,
+    contract, contractimpl, contracttype, contracterror, symbol_short,
+    token, Address, Env, Symbol,
 };
 
 // ---------------------------------------------------------------------------
@@ -79,12 +80,28 @@ pub struct TradeOffer {
 // Errors
 // ---------------------------------------------------------------------------
 
-#[contracttype]
+/// Standardised contract error enum.
+///
+/// Discriminant values are stable — never change an existing value.
+/// New variants must always be appended at the end with the next integer.
+/// See `contracts/ERROR_CODES.md` for the full reference table.
+#[contracterror]
 #[derive(Clone, Debug, PartialEq)]
 pub enum ContractError {
-    ContractPaused,
-    Unauthorized,
-    TimelockNotExpired,
+    AlreadyInitialized   = 1,
+    Unauthorized         = 2,
+    TradeNotFound        = 3,
+    WrongStatus          = 4,
+    TradeExpired         = 5,
+    InsufficientFunds    = 6,
+    InvalidExpiry        = 7,
+    AlreadyDisputed      = 8,
+    ContractPaused       = 9,
+    TimelockNotExpired   = 10,
+    UnsupportedToken     = 11,
+    InvalidAmount        = 12,
+    FillAlreadyProcessed = 13,
+    NotAParty            = 14,
 }
 
 // ---------------------------------------------------------------------------
@@ -115,15 +132,16 @@ fn topic_disputed() -> Symbol {
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-fn require_not_paused(env: &Env) {
-    if env
+fn require_not_paused(env: &Env) -> Result<(), ContractError> {
+    let paused: bool = env
         .storage()
         .instance()
         .get(&DataKey::Paused)
-        .unwrap_or(false)
-    {
+        .unwrap_or(false);
+    if paused {
         panic!("ContractPaused");
     }
+    Ok(())
 }
 
 fn get_admin_address(env: &Env) -> Address {
@@ -164,9 +182,9 @@ pub struct EscrowContract;
 
 #[contractimpl]
 impl EscrowContract {
-    pub fn initialize(env: Env, admin: Address, token: Address) {
+    pub fn initialize(env: Env, admin: Address, token: Address) -> Result<(), ContractError> {
         if env.storage().instance().has(&DataKey::Admin) {
-            panic!("already initialised");
+            return Err(ContractError::AlreadyInitialized);
         }
 
         admin.require_auth();
@@ -178,6 +196,7 @@ impl EscrowContract {
             .instance()
             .set(&DataKey::AllowedToken(token), &true);
         env.storage().instance().extend_ttl(17_280, 17_280 * 30);
+        Ok(())
     }
 
     pub fn add_allowed_token(env: Env, token: Address) {
@@ -221,11 +240,12 @@ impl EscrowContract {
         amount: i128,
         asset_type: Symbol,
         expires_at: u64,
-    ) -> u64 {
+    ) -> Result<u64, ContractError> {
         seller.require_auth();
-        require_not_paused(&env);
+        require_not_paused(&env)?;
 
         let token = get_token_address(&env);
+
         if !env
             .storage()
             .instance()
@@ -235,7 +255,7 @@ impl EscrowContract {
         }
 
         if amount <= 0 {
-            panic!("amount must be positive");
+            return Err(ContractError::InvalidAmount);
         }
 
         if expires_at <= env.ledger().timestamp() {
@@ -258,15 +278,20 @@ impl EscrowContract {
         };
 
         set_trade(&env, id, &trade);
+
         env.events()
             .publish((topic_created(), asset_type), (id, seller, amount));
 
-        id
+        Ok(id)
     }
 
-    pub fn deposit_to_escrow(env: Env, buyer: Address, trade_id: u64) {
+    pub fn deposit_to_escrow(
+        env: Env,
+        buyer: Address,
+        trade_id: u64,
+    ) -> Result<(), ContractError> {
         buyer.require_auth();
-        require_not_paused(&env);
+        require_not_paused(&env)?;
 
         let mut trade = get_trade_or_panic(&env, trade_id);
 
@@ -279,7 +304,7 @@ impl EscrowContract {
         }
 
         if buyer == trade.seller {
-            panic!("seller cannot buy own trade");
+            return Err(ContractError::Unauthorized);
         }
 
         let token_address = get_token_address(&env);
@@ -290,11 +315,13 @@ impl EscrowContract {
         trade.status = TradeStatus::Locked;
         set_trade(&env, trade_id, &trade);
 
-        env.events().publish((topic_locked(),), (trade_id, buyer));
+        env.events()
+            .publish((topic_locked(),), (trade_id, buyer));
+        Ok(())
     }
 
-    pub fn release_payment(env: Env, trade_id: u64) {
-        require_not_paused(&env);
+    pub fn release_payment(env: Env, trade_id: u64) -> Result<(), ContractError> {
+        require_not_paused(&env)?;
 
         let admin = get_admin_address(&env);
         admin.require_auth();
@@ -320,11 +347,16 @@ impl EscrowContract {
 
         env.events()
             .publish((topic_completed(),), (trade_id, trade.seller));
+        Ok(())
     }
 
-    pub fn cancel_and_refund(env: Env, caller: Address, trade_id: u64) {
+    pub fn cancel_and_refund(
+        env: Env,
+        caller: Address,
+        trade_id: u64,
+    ) -> Result<(), ContractError> {
         caller.require_auth();
-        require_not_paused(&env);
+        require_not_paused(&env)?;
 
         let admin = get_admin_address(&env);
         let mut trade = get_trade_or_panic(&env, trade_id);
@@ -354,11 +386,16 @@ impl EscrowContract {
 
         env.events()
             .publish((topic_cancelled(),), (trade_id, caller));
+        Ok(())
     }
 
-    pub fn flag_dispute(env: Env, caller: Address, trade_id: u64) {
+    pub fn flag_dispute(
+        env: Env,
+        caller: Address,
+        trade_id: u64,
+    ) -> Result<(), ContractError> {
         caller.require_auth();
-        require_not_paused(&env);
+        require_not_paused(&env)?;
 
         let mut trade = get_trade_or_panic(&env, trade_id);
         let is_buyer = trade.buyer.as_ref().is_some_and(|buyer| buyer == &caller);
@@ -376,6 +413,7 @@ impl EscrowContract {
 
         env.events()
             .publish((topic_disputed(),), (trade_id, caller));
+        Ok(())
     }
 
     pub fn get_trade(env: Env, trade_id: u64) -> TradeOffer {
@@ -669,8 +707,6 @@ mod test {
         );
         client.deposit_to_escrow(&buyer, &trade_id);
 
-        env.ledger().with_mut(|l| l.timestamp = 1_000_000 + 86_401);
-
         client.pause();
 
         client.cancel_and_refund(&buyer, &trade_id);
@@ -740,5 +776,25 @@ mod test {
 
         let trade = client.get_trade(&trade_id);
         assert_eq!(trade.status, TradeStatus::Locked);
+    }
+
+    #[test]
+    fn test_err_already_initialized() {
+        let (env, client, admin, _seller, _buyer, token) = setup();
+        let result = client.try_initialize(&admin, &token);
+        assert_eq!(result, Ok(Err(ContractError::AlreadyInitialized)));
+    }
+
+    #[test]
+    fn test_err_invalid_amount_zero() {
+        let (env, client, _admin, seller, _buyer, _token) = setup();
+        env.ledger().with_mut(|l| l.timestamp = 1_000_000);
+        let result = client.try_create_listing(
+            &seller,
+            &0i128,
+            &symbol_short!("AIRTIME"),
+            &(1_000_000 + 86_400),
+        );
+        assert_eq!(result, Ok(Err(ContractError::InvalidAmount)));
     }
 }

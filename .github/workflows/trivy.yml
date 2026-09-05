@@ -1,8 +1,7 @@
 name: Trivy Security Scan
-[------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------
 # Triggers
-  # ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 on:
   push:
     branches: [main]
@@ -14,7 +13,7 @@ on:
 
 # Cancel in-progress runs for the same branch/PR on new pushes.
 concurrency:
-  group: trivy-${ {{ github.ref }} }
+  group: trivy-${{ github.ref }}
   cancel-in-progress: true
 
 # ------------------------------------------------------------------------------
@@ -41,13 +40,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-     # Build the server Docker image locally so Trivy can scan it.
+      # Build the server Docker image locally so Trivy can scan it.
       # The image is never pushed to a registry in this job.
       - name: Build server Docker image
         run: |
           docker build \
             --file server/Dockerfile \
-            --tag airflex-server:${ {{ github.sha }} } \
+            --tag airflex-server:${{ github.sha }} \
             .
 
       # Scan the built image for OS and library CVEs.
@@ -55,10 +54,10 @@ jobs:
       - name: Scan server image with Trivy
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: airflex-server:${ {{ github.sha }} }
+          image-ref: airflex-server:${{ github.sha }}
           format: sarif
           output: trivy-server.sarif
-          severity: CRITICAL,LIGHT
+          severity: CRITICAL,HIGH
           exit-code: "0"
           ignore-unfixed: true
           vuln-type: os,library
@@ -96,7 +95,7 @@ jobs:
           scan-ref: .
           format: sarif
           output: trivy-fs.sarif
-          severity: CRITICAL,HIGHT
+          severity: CRITICAL,HIGH
           exit-code: "0"
           ignore-unfixed: true
           # Include secret detection and config checks in addition to vuln scanning

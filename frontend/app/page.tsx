@@ -1,6 +1,5 @@
 import type { TradeOffer } from "../../server/src/types/trade";
 import { getTranslations } from "next-intl/server";
-import ThemeToggle from "../components/ThemeToggle";
 import { Card } from "../components/ui/Card";
 
 interface TradesResponse {

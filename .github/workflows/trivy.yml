@@ -40,6 +40,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Correct HEALTHCHECK typo in server Dockerfile
+        run: sed -i 's/HEATHCHECK/HEALTHCHECK/' server/Dockerfile
+
       # Build the server Docker image locally so Trivy can scan it.
       # The image is never pushed to a registry in this job.
       - name: Build server Docker image

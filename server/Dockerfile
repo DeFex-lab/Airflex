@@ -31,6 +31,7 @@ COPY packages/shared/package.json ./packages/shared/package.json
 RUN pnpm install --prod --frozen-lockfile --filter airflex-server... && pnpm store prune
 
 COPY --from=builder /app/server/dist ./server/dist
+COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 
 USER airflex
 EXPOSE 3001

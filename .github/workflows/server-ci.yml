@@ -1,6 +1,5 @@
 name: Server CI
 
-name: Server CI
 on:
   push:
     branches: [main]
@@ -8,7 +7,7 @@ on:
     branches: [main]
 
 concurrency:
-  group: server-ci-$ {{ github.ref }}
+  group: server-ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -24,7 +23,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up pnpm
-        uses: pnpm/action-setup-@v4
+        uses: pnpm/action-setup@v4
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -39,9 +38,9 @@ jobs:
           path: |
             server/node_modules
             server/tsconfig.tsbuildinfo
-          key: server-ci-${{ runner.os }}-${ { hashFiles('pnpm-lock.yaml', 'server/tsconfig.json') }}
+          key: server-ci-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'server/tsconfig.json') }}
           restore-keys: |
-            server-ci-${ { runner.os }}-
+            server-ci-${{ runner.os }}-
 
       - name: Install dependencies
         working-directory: .
@@ -81,7 +80,7 @@ jobs:
           const cases = (results.testResults || []).map((test) => {
             const duration = test.endTime && test.startTime ? test.endTime - test.startTime : 0;
             const failure = test.status === 'failed'
-              ? `<failure message="${escape((test.message || '').split('\n')[0])}">${escape(test.message || '')}</failure>
+              ? `<failure message="${escape((test.message || '').split('\n')[0])}">${escape(test.message || '')}</failure>`
               : '';
             return `<testcase classname="${escape(test.testFilePath || 'server')}" name="${escape(test.testFilePath || 'test')}" time="${(duration / 1000).toFixed(3)}">${failure}</testcase>`;
           }).join('');

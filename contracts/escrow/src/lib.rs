@@ -285,11 +285,7 @@ impl EscrowContract {
         Ok(id)
     }
 
-    pub fn deposit_to_escrow(
-        env: Env,
-        buyer: Address,
-        trade_id: u64,
-    ) -> Result<(), ContractError> {
+    pub fn deposit_to_escrow(env: Env, buyer: Address, trade_id: u64) -> Result<(), ContractError> {
         buyer.require_auth();
         require_not_paused(&env)?;
 
@@ -315,8 +311,7 @@ impl EscrowContract {
         trade.status = TradeStatus::Locked;
         set_trade(&env, trade_id, &trade);
 
-        env.events()
-            .publish((topic_locked(),), (trade_id, buyer));
+        env.events().publish((topic_locked(),), (trade_id, buyer));
         Ok(())
     }
 
@@ -389,11 +384,7 @@ impl EscrowContract {
         Ok(())
     }
 
-    pub fn flag_dispute(
-        env: Env,
-        caller: Address,
-        trade_id: u64,
-    ) -> Result<(), ContractError> {
+    pub fn flag_dispute(env: Env, caller: Address, trade_id: u64) -> Result<(), ContractError> {
         caller.require_auth();
         require_not_paused(&env)?;
 
@@ -411,8 +402,7 @@ impl EscrowContract {
         trade.status = TradeStatus::Disputed;
         set_trade(&env, trade_id, &trade);
 
-        env.events()
-            .publish((topic_disputed(),), (trade_id, caller));
+        env.events().publish((topic_disputed(),), (trade_id, caller));
         Ok(())
     }
 

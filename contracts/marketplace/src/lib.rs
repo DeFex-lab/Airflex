@@ -74,20 +74,20 @@ pub struct Reputation {
 #[contracterror]
 #[derive(Clone, Debug, PartialEq)]
 pub enum ContractError {
-    AlreadyInitialized   = 1,
-    Unauthorized         = 2,
-    TradeNotFound        = 3,
-    WrongStatus          = 4,
-    TradeExpired         = 5,
-    InsufficientFunds    = 6,
-    InvalidExpiry        = 7,
-    AlreadyDisputed      = 8,
-    ContractPaused       = 9,
-    TimelockNotExpired   = 10,
-    UnsupportedToken     = 11,
-    InvalidAmount        = 12,
+    AlreadyInitialized = 1,
+    Unauthorized = 2,
+    TradeNotFound = 3,
+    WrongStatus = 4,
+    TradeExpired = 5,
+    InsufficientFunds = 6,
+    InvalidExpiry = 7,
+    AlreadyDisputed = 8,
+    ContractPaused = 9,
+    TimelockNotExpired = 10,
+    UnsupportedToken = 11,
+    InvalidAmount = 12,
     FillAlreadyProcessed = 13,
-    NotAParty            = 14,
+    NotAParty = 14,
 }
 
 // ---------------------------------------------------------------------------
@@ -217,7 +217,8 @@ impl MarketplaceContract {
 
         env.storage().instance().set(&DataKey::Paused, &false);
 
-        env.events().publish((topic_contract(), topic_unpaused()), ());
+        env.events()
+            .publish((topic_contract(), topic_unpaused()), ());
         Ok(())
     }
 
@@ -281,7 +282,8 @@ impl MarketplaceContract {
             .persistent()
             .extend_ttl(&DataKey::Listing(id), 17_280, 17_280 * 30);
 
-        env.events().publish((topic_listed(), asset_type), (id, seller, price, quantity));
+        env.events()
+            .publish((topic_listed(), asset_type), (id, seller, price, quantity));
 
         Ok(id)
     }
@@ -330,7 +332,8 @@ impl MarketplaceContract {
             .persistent()
             .set(&DataKey::Listing(listing_id), &listing);
 
-        env.events().publish((topic_sold(),), (listing_id, buyer, listing.price));
+        env.events()
+            .publish((topic_sold(),), (listing_id, buyer, listing.price));
         Ok(())
     }
 
@@ -376,7 +379,8 @@ impl MarketplaceContract {
 
         update_reputation(&env, &listing.seller, listing.price, false);
 
-        env.events().publish((topic_sold(),), (listing_id, listing.seller, listing.price));
+        env.events()
+            .publish((topic_sold(),), (listing_id, listing.seller, listing.price));
         Ok(())
     }
 
@@ -418,7 +422,8 @@ impl MarketplaceContract {
 
         update_reputation(&env, &listing.seller, 0, true);
 
-        env.events().publish((topic_cancelled(),), (listing_id, buyer));
+        env.events()
+            .publish((topic_cancelled(),), (listing_id, buyer));
         Ok(())
     }
 
@@ -462,7 +467,8 @@ impl MarketplaceContract {
         let is_seller = recipient == listing.seller;
         update_reputation(&env, &listing.seller, listing.price, !is_seller);
 
-        env.events().publish((topic_cancelled(),), (listing_id, recipient));
+        env.events()
+            .publish((topic_cancelled(),), (listing_id, recipient));
         Ok(())
     }
 

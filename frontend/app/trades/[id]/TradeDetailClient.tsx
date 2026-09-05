@@ -6,11 +6,22 @@ import type { TradeOffer } from "../../../../server/src/types/trade";
 import { getToken, getUser, isAuthenticated } from "../../lib/auth";
 import { Button } from "../../../components/ui/Button";
 import { Badge } from "../../../components/ui/Badge";
-import { Spinner } from "../../../components/ui/Spinner";
 import { Card } from "../../../components/ui/Card";
 import { Toast } from "../../../components/ui/Toast";
 import { StellarExplorerLink } from "../../../components/StellarExplorerLink";
 import { DisputeModal } from "./dispute/DisputeModal";
+
+// ---------------------------------------------------------------------------
+// Escrow trade types
+// ---------------------------------------------------------------------------
+
+type EscrowTradeStatus = TradeOffer["status"];
+
+type EscrowBadgeVariant = Exclude<EscrowTradeStatus, "Active"> | "Open";
+
+function escrowStatusBadgeVariant(status: EscrowTradeStatus): EscrowBadgeVariant {
+  return status === "Active" ? "Open" : status;
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -295,7 +306,7 @@ export default function TradeDetailClient({ trade }: Props) {
         {/* Coloured header strip */}
         <div className="flex items-center justify-between gap-3 bg-violet-50 px-5 py-4 border-b border-violet-100 dark:bg-violet-900/20 dark:border-violet-800">
           <AssetBadge assetType={trade.asset_type} />
-          <Badge variant={status === "Active" ? "Open" : (status as any)} />
+          <Badge variant={escrowStatusBadgeVariant(status)} />
         </div>
 
         {/* Detail rows */}

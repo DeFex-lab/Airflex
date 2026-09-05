@@ -28,7 +28,7 @@ const meta: Meta<typeof Modal> = {
 };
 
 export default meta;
-type Story = StoryObj<typeof Modal>;
+type Story = StoryObj <Modal>;
 
 function InteractiveModal() {
   const [open, setOpen] = useState(false);
@@ -52,7 +52,7 @@ function InteractiveModal() {
           </>
         }
       >
-        <p className="text-sm text-gray-600dark:text-gray-300">
+        <p className="text-sm text-gray-600 dark:text-gray-300">
           This action will update the contract status on the Stellar network.
         </p>
       </Modal>

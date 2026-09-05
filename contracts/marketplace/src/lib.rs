@@ -29,6 +29,7 @@ pub enum ListingStatus {
     Active,
     Sold,
     Cancelled,
+    Released,
 }
 
 #[contracttype]
@@ -347,12 +348,15 @@ impl MarketplaceContract {
         let admin = get_admin(&env)?;
         admin.require_auth();
 
-        let listing: Listing = env
+        let mut listing: Listing = env
             .storage()
             .persistent()
             .get(&DataKey::Listing(listing_id))
             .ok_or(ContractError::TradeNotFound)?;
 
+        if listing.status == ListingStatus::Released {
+            return Err(ContractError::FillAlreadyProcessed);
+        }
         if listing.status != ListingStatus::Sold {
             return Err(ContractError::WrongStatus);
         }
@@ -363,6 +367,12 @@ impl MarketplaceContract {
             &listing.seller,
             &listing.price,
         );
+
+        listing.status = ListingStatus::Released;
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::Listing(listing_id), &listing);
 
         update_reputation(&env, &listing.seller, listing.price, false);
 

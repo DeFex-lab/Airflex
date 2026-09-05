@@ -2,7 +2,9 @@ import type { TradeOffer } from "../../server/src/types/trade";
 import { getTranslations } from "next-intl/server";
 import { Card } from "../components/ui/Card";
 
-export type EscrowTradeType = "buy" | "sell";
+const escrowTradeTypes = ["buy", "sell"] as const;
+
+export type EscrowTradeType = (typeof escrowTradeTypes)[number];
 
 interface TradesResponse {
   data: TradeOffer[];

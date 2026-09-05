@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import React, { useState } from "react";
+import { useState } from "react";
 import { Modal } from "./Modal";
 import { Button } from "./Button";
 
@@ -52,7 +52,7 @@ function InteractiveModal() {
           </>
         }
       >
-        <p className="text-sm text-gray-600 dark:text-gray-300">
+        <p className="text-sm text-gray-600dark:text-gray-300">
           This action will update the contract status on the Stellar network.
         </p>
       </Modal>

@@ -234,6 +234,13 @@ impl EscrowContract {
             .unwrap_or(false)
     }
 
+    pub fn trade_count(env: Env) -> u64 {
+        env.storage()
+            .instance()
+            .get(&DataKey::TradeCount)
+            .unwrap_or(0)
+    }
+
     pub fn create_listing(
         env: Env,
         seller: Address,
@@ -392,6 +399,27 @@ impl EscrowContract {
         let is_buyer = trade.buyer.as_ref().is_some_and(|buyer| buyer == &caller);
 
         if caller != trade.seller && !is_buyer {
+            return Err(ContractError::Unauthorized);
+        }
+
+        if trade.status == TradeStatus::Disputed {
+            return Err(ContractError::AlreadyDisputed);
+        }
+
+        if trade.status == TradeStatus::Open
+            || trade.status == TradeStatus::Completed
+            || trade.status == TradeStatus::Cancelled
+        {
+            return Err(ContractError::WrongStatus);
+        }
+
+        trade.status = TradeStatus::Disputed;
+        set_trade(&env, trade_id, &trade);
+
+        env.events().publish((topic_disputed(),), (trade_id, caller));
+        Ok(())
+    }
+}
             panic!("only trade parties can flag a dispute");
         }
 

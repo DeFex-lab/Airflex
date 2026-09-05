@@ -10,6 +10,8 @@ import type { Page, Route } from "@playwright/test";
 
 export const API_URL = process.env["NEXT_PUBLIC_API_URL"] ?? "http://localhost:3001";
 
+export type TradeStatus = "Active" | "Locked";
+
 export const TEST_TRADE = {
   id: "trade_e2e_001",
   seller_id: "seller_1",

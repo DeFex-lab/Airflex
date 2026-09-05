@@ -21,7 +21,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-noding@v4
         with:
           node-version: 20
 
@@ -32,9 +32,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.local/share/pnpm/store
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          key: $,{{ runner.os }}-pnpm-$({ { hashFiles('pnpm-lock.yaml') }})
           restore-keys: |
-            ${{ runner.os }}-pnpm-
+            $,{{ runner.os }}-pnpm-
 
       - name: Install dependencies
         working-directory: .
@@ -44,7 +44,7 @@ jobs:
         run: pnpm lint
 
       - name: Type-Check
-        run: pnpm tsc --noEmit
+        run: pnpm exec tsc --noEmit
 
       - name: Build
         run: pnpm build

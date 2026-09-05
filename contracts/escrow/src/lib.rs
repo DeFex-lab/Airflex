@@ -88,20 +88,20 @@ pub struct TradeOffer {
 #[contracterror]
 #[derive(Clone, Debug, PartialEq)]
 pub enum ContractError {
-    AlreadyInitialized   = 1,
-    Unauthorized         = 2,
-    TradeNotFound        = 3,
-    WrongStatus          = 4,
-    TradeExpired         = 5,
-    InsufficientFunds    = 6,
-    InvalidExpiry        = 7,
-    AlreadyDisputed      = 8,
-    ContractPaused       = 9,
-    TimelockNotExpired   = 10,
-    UnsupportedToken     = 11,
-    InvalidAmount        = 12,
+    AlreadyInitialized = 1,
+    Unauthorized = 2,
+    TradeNotFound = 3,
+    WrongStatus = 4,
+    TradeExpired = 5,
+    InsufficientFunds = 6,
+    InvalidExpiry = 7,
+    AlreadyDisputed = 8,
+    ContractPaused = 9,
+    TimelockNotExpired = 10,
+    UnsupportedToken = 11,
+    InvalidAmount = 12,
     FillAlreadyProcessed = 13,
-    NotAParty            = 14,
+    NotAParty = 14,
 }
 
 // ---------------------------------------------------------------------------

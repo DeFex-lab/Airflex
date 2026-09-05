@@ -2,6 +2,8 @@ import type { TradeOffer } from "../../server/src/types/trade";
 import { getTranslations } from "next-intl/server";
 import { Card } from "../components/ui/Card";
 
+export type EscrowTradeType = "buy" | "sell";
+
 interface TradesResponse {
   data: TradeOffer[];
   pagination: {

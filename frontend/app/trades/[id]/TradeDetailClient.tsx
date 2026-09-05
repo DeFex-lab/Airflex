@@ -174,7 +174,7 @@ export default function TradeDetailClient({ trade }: Props) {
   const t = useTranslations("Trade");
   const countdown = useCountdown(trade.expires_at);
 
-  const [status, setStatus]               = useState<TradeOffer["status"]>(trade.status);
+  const [status, setStatus]               = useState<EscrowTradeStatus>(trade.status);
   const [authed, setAuthed]               = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [buying, setBuying]               = useState(false);

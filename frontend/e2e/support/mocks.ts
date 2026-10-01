@@ -15,6 +15,7 @@ export type TradeStatus = "Active" | "Locked";
 export const TEST_TRADE = {
   id: "trade_e2e_001",
   seller_id: "seller_1",
+  seller_handle: "@airflex_2f9a",
   buyer_id: null,
   asset_type: "MTN",
   amount: 5000,

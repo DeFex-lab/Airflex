@@ -1,41 +1,9 @@
-import { Suspense } from "react";
-import type { TradeOffer } from "../../server/src/types/trade";
 import { getTranslations } from "next-intl/server";
-import MarketplaceListings from "../components/MarketplaceListings";
-import { Card } from "../components/ui/Card";
-
-const escrowTradeTypes = ["buy", "sell"] as const;
-
-export type EscrowTradeType = (typeof escrowTradeTypes)[number];
-
-interface TradesResponse {
-  data: TradeOffer[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
-}
-
-async function getActiveListings(): Promise<TradesResponse> {
-  const apiUrl = process.env["NEXT_PUBLIC_API_URL"] ?? "http://localhost:3001";
-  try {
-    const res = await fetch(`${apiUrl}/api/v1/trades?page=1&limit=20`, {
-      next: { revalidate: 30 },
-    });
-    if (!res.ok) {
-      return { data: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } };
-    }
-    return res.json() as Promise<TradesResponse>;
-  } catch {
-    return { data: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } };
-  }
-}
+import ThemeToggle from "../components/ThemeToggle";
+import ListingsGrid from "./components/ListingsGrid";
 
 export default async function HomePage() {
   const t = await getTranslations("Home");
-  const { data: listings, pagination } = await getActiveListings();
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -72,30 +40,8 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* Listings */}
-        <section
-          id="listings"
-          aria-labelledby="listings-heading"
-          className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8"
-        >
-          <div className="mb-6 flex flex-wrap items-baseline justify-between gap-4">
-            <div>
-              <h2
-                id="listings-heading"
-                className="text-2xl font-bold text-gray-900 dark:text-gray-100"
-              >
-                {t("activeListings")}
-              </h2>
-            </div>
-          </div>
-
-          <Suspense fallback={<div className="py-16 text-center text-gray-500">Loading listings…</div>}>
-            <MarketplaceListings
-              initialTrades={listings}
-              initialPagination={pagination}
-            />
-          </Suspense>
-        </section>
+        {/* Listings grid with filter — client component */}
+        <ListingsGrid />
       </main>
 
       <footer className="border-t border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800">

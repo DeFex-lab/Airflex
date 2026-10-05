@@ -1,14 +1,13 @@
 import { expect, test } from "@playwright/test";
 
-import { mockCreateListing, mockProfile, signIn } from "./support/mocks";
+import { mockCreateListing, signIn } from "./support/mocks";
 
 /**
  * Sell journey (Issue #30): fill the listing form and see the trade id back.
  */
-test.describe("Create listing", ()=> {
+test.describe("Create listing", () => {
   test.beforeEach(async ({ page }) => {
     await signIn(page);
-    await mockProfile(page);
     await mockCreateListing(page);
   });
 
@@ -18,7 +17,6 @@ test.describe("Create listing", ()=> {
     await page.locator("#assetType").selectOption({ index: 1 }).catch(async () => {
       await page.locator("#assetType").fill("MTN");
     });
-    await page.locator("#tradeType").selectOption("escrow");
     await page.locator("#amount").fill("5000");
 
     const expiry = page.locator("#expiresInHours");
@@ -27,7 +25,7 @@ test.describe("Create listing", ()=> {
     await page.locator('button[type="submit"]').click();
 
     await expect(page.getByText(/trade_e2e_001|listing created|success/i).first()).toBeVisible({
-      timeout: 10,000,
+      timeout: 10_000,
     });
   });
 
@@ -43,4 +41,4 @@ test.describe("Create listing", ()=> {
 
     expect(posted).toBe(false);
   });
-}
+});

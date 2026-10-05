@@ -54,7 +54,6 @@
     "jest": "29.7.0",
     "supertest": "7.0.0",
     "ts-jest": "29.2.3",
-    "ts-node": "10.9.2",
     "ts-node-dev": "2.0.0",
     "tsc-alias": "1.8.10",
     "tsconfig-paths": "4.2.0",
@@ -67,7 +66,7 @@
       "<rootDir>/src"
     ],
     "moduleNameMapper": {
-      "^@server/(*)$": "<rootDir>/src/$1"
+      "^@server/(.*)$": "<rootDir>/src/$1"
     },
     "testMatch": [
       "**/*.test.ts"
@@ -77,8 +76,11 @@
       "js",
       "json"
     ],
+    "moduleNameMapper": {
+      "^@server/(.*)$": "<rootDir>/src/$1"
+    },
     "transform": {
-      "^\\.+\\.ts$": [
+      "^.+\\.ts$": [
         "ts-jest",
         {
           "tsconfig": "tsconfig.json"

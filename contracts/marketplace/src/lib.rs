@@ -2,8 +2,7 @@
 #![allow(clippy::too_many_arguments)]
 
 use soroban_sdk::{
-    contract, contractimpl, contracttype, contracterror, symbol_short,
-    token, Address, Env, Symbol,
+    contract, contracterror, contractimpl, contracttype, symbol_short, token, Address, Env, Symbol,
 };
 
 // ---------------------------------------------------------------------------
@@ -38,7 +37,6 @@ pub enum ListingStatus {
     /// to stop `release_payment` being called again on the same listing.
     Released,
     Cancelled,
-    Released,
 }
 
 #[contracttype]
@@ -49,7 +47,7 @@ pub enum AssetCategory {
 }
 
 #[contracttype]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Listing {
     pub id: u64,
     pub seller: Address,
@@ -59,7 +57,7 @@ pub struct Listing {
     pub asset_type: Symbol, // e.g. symbol_short!("MTN")
     pub quantity: i128,     // units of airtime/data being sold
     pub status: ListingStatus,
-pub created_at: u64, // ledger timestamp
+    pub created_at: u64, // ledger timestamp
     pub expires_at: u64, // listing expiry
     /// Set by deposit_to_escrow once a buyer locks funds. Used by
     /// resolve_dispute to confirm a recipient is actually a party to the
@@ -113,23 +111,25 @@ pub enum ContractError {
 // to avoid compile-time macro panics.
 fn topic_listed() -> Symbol {
     symbol_short!("listed")
-}
+} // 6 chars
 fn topic_sold() -> Symbol {
     symbol_short!("sold")
-}
+} // 4 chars
 fn topic_cancelled() -> Symbol {
     symbol_short!("cancelled")
-}
+} // 9 chars (max limit for symbol_short!)
 fn topic_contract() -> Symbol {
     symbol_short!("contract")
-}
+} // 8 chars
 fn topic_paused() -> Symbol {
     symbol_short!("paused")
-}
+} // 6 chars
 fn topic_unpaused() -> Symbol {
     symbol_short!("unpaused")
-}
-fn topic_updated()   -> Symbol { symbol_short!("updated")   } // 7 chars
+} // 8 chars
+fn topic_updated() -> Symbol {
+    symbol_short!("updated")
+} // 7 chars
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -389,9 +389,6 @@ impl MarketplaceContract {
             .get(&DataKey::Listing(listing_id))
             .ok_or(ContractError::TradeNotFound)?;
 
-        if listing.status == ListingStatus::Released {
-            return Err(ContractError::FillAlreadyProcessed);
-        }
         if listing.status != ListingStatus::Sold {
             return Err(ContractError::WrongStatus);
         }
@@ -403,15 +400,15 @@ impl MarketplaceContract {
             &listing.price,
         );
 
-// Previously the listing was never re-saved here, so it stayed
+        // Previously the listing was never re-saved here, so it stayed
         // `Sold` forever — indistinguishable from a listing whose payment had
         // not yet been released, and with nothing stopping this function
         // being called again on the same listing to drain it a second time.
         listing.status = ListingStatus::Released;
-
         env.storage()
             .persistent()
             .set(&DataKey::Listing(listing_id), &listing);
+
         update_reputation(&env, &listing.seller, listing.price, false);
 
         env.events()
@@ -565,8 +562,10 @@ impl MarketplaceContract {
             .persistent()
             .set(&DataKey::Listing(listing_id), &listing);
 
-        env.events()
-            .publish((topic_updated(),), (listing_id, seller, new_price, new_expires_at));
+        env.events().publish(
+            (topic_updated(),),
+            (listing_id, seller, new_price, new_expires_at),
+        );
 
         Ok(())
     }
@@ -724,7 +723,7 @@ mod test {
         let sac = StellarAssetClient::new(&env, &token_address);
 
         // Mint tokens to buyer
-        sac.mint(&buyer, &100_000_000_000_i128);
+        sac.mint(&buyer, &100_000_000_000i128);
 
         client.initialize(&admin);
 
@@ -836,7 +835,7 @@ mod test {
             &1000i128,
             &(1_000_000 + 86_400),
         );
-        assert_eq!(result, Ok(Err(ContractError::ContractPaused)));
+        assert_eq!(result, Err(Ok(ContractError::ContractPaused)));
     }
 
     #[test]
@@ -857,7 +856,7 @@ mod test {
         client.pause();
 
         let result = client.try_deposit_to_escrow(&buyer, &listing_id);
-        assert_eq!(result, Ok(Err(ContractError::ContractPaused)));
+        assert_eq!(result, Err(Ok(ContractError::ContractPaused)));
     }
 
     #[test]
@@ -879,7 +878,7 @@ mod test {
         client.pause();
 
         let result = client.try_release_payment(&listing_id);
-        assert_eq!(result, Ok(Err(ContractError::ContractPaused)));
+        assert_eq!(result, Err(Ok(ContractError::ContractPaused)));
     }
 
     #[test]
@@ -901,7 +900,7 @@ mod test {
         client.pause();
 
         let result = client.try_cancel_and_refund(&buyer, &listing_id);
-        assert_eq!(result, Ok(Err(ContractError::ContractPaused)));
+        assert_eq!(result, Err(Ok(ContractError::ContractPaused)));
     }
 
     #[test]
@@ -923,7 +922,7 @@ mod test {
         client.pause();
 
         let result = client.try_resolve_dispute(&listing_id, &buyer);
-        assert_eq!(result, Ok(Err(ContractError::ContractPaused)));
+        assert_eq!(result, Err(Ok(ContractError::ContractPaused)));
     }
 
     #[test]
@@ -997,26 +996,25 @@ mod test {
         let (_env, client, admin, _seller, _buyer, _token) = setup();
         // setup() already initialised — call again
         let result = client.try_initialize(&admin);
-        assert_eq!(result, Ok(Err(ContractError::AlreadyInitialized)));
+        assert_eq!(result, Err(Ok(ContractError::AlreadyInitialized)));
     }
 
     #[test]
     fn test_err_unauthorized_uninitialised_pause() {
         let env = Env::default();
         env.mock_all_auths();
-
         let contract_id = env.register(MarketplaceContract, ());
         let client = MarketplaceContractClient::new(&env, &contract_id);
         // Contract not initialised — pause should fail with Unauthorized
         let result = client.try_pause();
-        assert_eq!(result, Ok(Err(ContractError::Unauthorized)));
+        assert_eq!(result, Err(Ok(ContractError::Unauthorized)));
     }
 
     #[test]
     fn test_err_trade_not_found() {
         let (_env, client, _admin, _seller, _buyer, _token) = setup();
         let result = client.try_get_listing(&999u64);
-        assert_eq!(result, Ok(Err(ContractError::TradeNotFound)));
+        assert_eq!(result, Err(Ok(ContractError::TradeNotFound)));
     }
 
     #[test]
@@ -1032,7 +1030,7 @@ mod test {
             &1000i128,
             &(1_000_000 + 86_400),
         );
-        assert_eq!(result, Ok(Err(ContractError::InvalidAmount)));
+        assert_eq!(result, Err(Ok(ContractError::InvalidAmount)));
     }
 
     #[test]
@@ -1048,7 +1046,7 @@ mod test {
             &0i128,
             &(1_000_000 + 86_400),
         );
-        assert_eq!(result, Ok(Err(ContractError::InvalidAmount)));
+        assert_eq!(result, Err(Ok(ContractError::InvalidAmount)));
     }
 
     #[test]
@@ -1064,7 +1062,7 @@ mod test {
             &500i128,
             &999_999u64,
         );
-        assert_eq!(result, Ok(Err(ContractError::InvalidExpiry)));
+        assert_eq!(result, Err(Ok(ContractError::InvalidExpiry)));
     }
 
     #[test]
@@ -1087,7 +1085,7 @@ mod test {
         let sac = StellarAssetClient::new(&env, &token);
         sac.mint(&buyer2, &500_0000000i128);
         let result = client.try_deposit_to_escrow(&buyer2, &listing_id);
-        assert_eq!(result, Ok(Err(ContractError::WrongStatus)));
+        assert_eq!(result, Err(Ok(ContractError::WrongStatus)));
     }
 
     #[test]
@@ -1108,7 +1106,7 @@ mod test {
         env.ledger().with_mut(|l| l.timestamp = 1_000_000 + 86_401);
 
         let result = client.try_deposit_to_escrow(&buyer, &listing_id);
-        assert_eq!(result, Ok(Err(ContractError::TradeExpired)));
+        assert_eq!(result, Err(Ok(ContractError::TradeExpired)));
     }
 
     #[test]
@@ -1126,7 +1124,7 @@ mod test {
             &(1_000_000 + 86_400),
         );
         let result = client.try_deposit_to_escrow(&seller, &listing_id);
-        assert_eq!(result, Ok(Err(ContractError::Unauthorized)));
+        assert_eq!(result, Err(Ok(ContractError::Unauthorized)));
     }
 
     #[test]
@@ -1145,7 +1143,7 @@ mod test {
         );
         // No deposit — still Active
         let result = client.try_release_payment(&listing_id);
-        assert_eq!(result, Ok(Err(ContractError::WrongStatus)));
+        assert_eq!(result, Err(Ok(ContractError::WrongStatus)));
     }
 
     #[test]
@@ -1164,9 +1162,8 @@ mod test {
         );
         // Listing is Active, not Sold
         let result = client.try_cancel_and_refund(&buyer, &listing_id);
-        assert_eq!(result, Ok(Err(ContractError::WrongStatus)));
+        assert_eq!(result, Err(Ok(ContractError::WrongStatus)));
     }
-}
 
     #[test]
     fn test_event_topic_lengths_and_long_topic_handling() {
@@ -1247,8 +1244,13 @@ mod test {
             &(1_000_000 + 86_400),
         );
 
-        let result = client.try_update_listing(&buyer, &listing_id, &600_0000000i128, &(1_000_000 + 100_000));
-        assert_eq!(result, Ok(Err(ContractError::Unauthorized)));
+        let result = client.try_update_listing(
+            &buyer,
+            &listing_id,
+            &600_0000000i128,
+            &(1_000_000 + 100_000),
+        );
+        assert_eq!(result, Err(Ok(ContractError::Unauthorized)));
     }
 
     #[test]
@@ -1269,8 +1271,13 @@ mod test {
         // Buyer deposits, making listing Sold
         client.deposit_to_escrow(&buyer, &listing_id);
 
-        let result = client.try_update_listing(&seller, &listing_id, &600_0000000i128, &(1_000_000 + 100_000));
-        assert_eq!(result, Ok(Err(ContractError::WrongStatus)));
+        let result = client.try_update_listing(
+            &seller,
+            &listing_id,
+            &600_0000000i128,
+            &(1_000_000 + 100_000),
+        );
+        assert_eq!(result, Err(Ok(ContractError::WrongStatus)));
     }
 
     // -----------------------------------------------------------------------
@@ -1284,20 +1291,25 @@ mod test {
 
         let sac = StellarAssetClient::new(&env, &token);
         let contract_addr = client.address.clone();
-        sac.mint(&contract_addr, &1_000_0000000i128);
+        sac.mint(&contract_addr, &10_000_000_000i128);
 
         // Must be paused
         client.pause();
 
         // Advance ledger time past 72 hours
-        env.ledger().with_mut(|l| l.timestamp = 1_000_000 + EMERGENCY_TIMELOCK_SECS + 1);
+        env.ledger()
+            .with_mut(|l| l.timestamp = 1_000_000 + EMERGENCY_TIMELOCK_SECS + 1);
 
         let recipient = buyer.clone();
-        let initial_balance = sac.balance(&recipient);
+        let token_client = TokenClient::new(&env, &token);
+        let initial_balance = token_client.balance(&recipient);
 
         client.emergency_withdraw(&token, &recipient, &500_0000000i128);
 
-        assert_eq!(sac.balance(&recipient), initial_balance + 500_0000000i128);
+        assert_eq!(
+            token_client.balance(&recipient),
+            initial_balance + 500_0000000i128
+        );
     }
 
     #[test]
@@ -1306,7 +1318,7 @@ mod test {
         env.ledger().with_mut(|l| l.timestamp = 1_000_000);
 
         let sac = StellarAssetClient::new(&env, &token);
-        sac.mint(&client.address, &1_000_0000000i128);
+        sac.mint(&client.address, &10_000_000_000i128);
 
         client.pause();
 
@@ -1314,7 +1326,7 @@ mod test {
         env.ledger().with_mut(|l| l.timestamp = 1_000_000 + 3600);
 
         let result = client.try_emergency_withdraw(&token, &buyer, &500_0000000i128);
-        assert_eq!(result, Ok(Err(ContractError::TimelockNotExpired)));
+        assert_eq!(result, Err(Ok(ContractError::TimelockNotExpired)));
     }
 
     #[test]
@@ -1323,10 +1335,10 @@ mod test {
         env.ledger().with_mut(|l| l.timestamp = 1_000_000);
 
         let sac = StellarAssetClient::new(&env, &token);
-        sac.mint(&client.address, &1_000_0000000i128);
+        sac.mint(&client.address, &10_000_000_000i128);
 
         // Not paused
         let result = client.try_emergency_withdraw(&token, &buyer, &500_0000000i128);
-        assert_eq!(result, Ok(Err(ContractError::WrongStatus)));
+        assert_eq!(result, Err(Ok(ContractError::WrongStatus)));
     }
 }

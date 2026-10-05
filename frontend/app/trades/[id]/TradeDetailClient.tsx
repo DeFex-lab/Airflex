@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslations } from "next-intl";
 import type { TradeOffer } from "../../../../server/src/types/trade";
 import { getToken, getUser, isAuthenticated } from "../../lib/auth";
+import { ApiError, apiFetch } from "../../lib/apiFetch";
 import {
   AccountMismatchError,
   SessionKeyMissingError,
@@ -14,6 +15,7 @@ import {
 import { clearSessionKey } from "../../lib/stellarSession";
 import { Button } from "../../../components/ui/Button";
 import { Badge } from "../../../components/ui/Badge";
+import { Spinner } from "../../../components/ui/Spinner";
 import { Card } from "../../../components/ui/Card";
 import { Toast } from "../../../components/ui/Toast";
 import { StellarExplorerLink } from "../../../components/StellarExplorerLink";
@@ -22,18 +24,6 @@ import {
   shouldShowEscrowLink,
 } from "../../../components/EscrowTransactionLink";
 import { DisputeModal } from "./dispute/DisputeModal";
-
-// ---------------------------------------------------------------------------
-// Escrow trade types
-// ---------------------------------------------------------------------------
-
-type EscrowTradeStatus = TradeOffer["status"];
-
-type EscrowBadgeVariant = Exclude<EscrowTradeStatus, "Active"> | "Open";
-
-function escrowStatusBadgeVariant(status: EscrowTradeStatus): EscrowBadgeVariant {
-  return status === "Active" ? "Open" : status;
-}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -61,7 +51,7 @@ function AssetBadge({ assetType }: { assetType: string }) {
   );
 }
 
-function DetailRow({ label, children }: { label: string; children: ReactNode }) {
+function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4 px-5 py-3.5">
       <dt className="shrink-0 text-xs font-medium text-gray-500 dark:text-gray-400">{label}</dt>
@@ -191,7 +181,7 @@ export default function TradeDetailClient({ trade }: Props) {
   const t = useTranslations("Trade");
   const countdown = useCountdown(trade.expires_at);
 
-  const [status, setStatus]               = useState<EscrowTradeStatus>(trade.status);
+  const [status, setStatus]               = useState<TradeOffer["status"]>(trade.status);
   const [authed, setAuthed]               = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [buying, setBuying]               = useState(false);
@@ -258,26 +248,14 @@ export default function TradeDetailClient({ trade }: Props) {
       return;
     }
 
-    const authHeaders = {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    };
-
     try {
       // 1. Build + simulate, server-side.
-      const prepareRes = await fetch(
+      const prepared = await apiFetch<PrepareBuyResponse>(
         `${apiUrl}/api/v1/trades/${trade.id}/buy/prepare`,
-        { method: "POST", headers: authHeaders }
+        { method: "POST" }
       );
 
-      if (prepareRes.status === 401) {
-        reauthenticate();
-        return;
-      }
-
-      const prepared = (await prepareRes.json()) as PrepareBuyResponse;
-
-      if (!prepareRes.ok || !prepared.data) {
+      if (!prepared.data) {
         setBuyError(prepared.error ?? t("purchaseFailed"));
         return;
       }
@@ -286,7 +264,7 @@ export default function TradeDetailClient({ trade }: Props) {
       //    unlocking first — after a reload there is nothing cached.
       let signedXdr: string;
       try {
-        await ensureSessionKey(apiUrl, token);
+        await ensureSessionKey(apiUrl);
         signedXdr = signTransactionXdr({
           xdr: prepared.data.xdr,
           networkPassphrase: prepared.data.networkPassphrase,
@@ -315,29 +293,23 @@ export default function TradeDetailClient({ trade }: Props) {
       }
 
       // 3. Submit the signed envelope.
-      const res = await fetch(`${apiUrl}/api/v1/trades/${trade.id}/buy`, {
+      const data = await apiFetch<BuyResponse>(`${apiUrl}/api/v1/trades/${trade.id}/buy`, {
         method: "POST",
-        headers: authHeaders,
         body: JSON.stringify({ signedXdr }),
       });
-
-      const data = (await res.json()) as BuyResponse;
-
-      if (res.status === 401) {
-        reauthenticate();
-        return;
-      }
-
-      if (!res.ok) {
-        setBuyError(data.error ?? t("purchaseFailed"));
-        return;
-      }
 
       setStatus("Locked");
       setTxHash(data.data?.escrow_tx_hash ?? "");
       setConfirmed(true);
-    } catch {
-      setBuyError(t("networkError"));
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        reauthenticate();
+      } else if (error instanceof ApiError) {
+        const data = error.data as { error?: string } | undefined;
+        setBuyError(data?.error ?? t("purchaseFailed"));
+      } else {
+        setBuyError(t("networkError"));
+      }
     } finally {
       setBuying(false);
     }
@@ -397,7 +369,7 @@ export default function TradeDetailClient({ trade }: Props) {
         {/* Coloured header strip */}
         <div className="flex items-center justify-between gap-3 bg-violet-50 px-5 py-4 border-b border-violet-100 dark:bg-violet-900/20 dark:border-violet-800">
           <AssetBadge assetType={trade.asset_type} />
-          <Badge variant={escrowStatusBadgeVariant(status)} />
+          <Badge variant={status === "Active" ? "Open" : (status as any)} />
         </div>
 
         {/* Detail rows */}
@@ -471,9 +443,9 @@ export default function TradeDetailClient({ trade }: Props) {
           {t("howItWorks")}
         </p>
         <ol className="mt-2 flex flex-col gap-1 text-sm text-violet-800 list-decimal list-inside dark:text-violet-300">
-          <li>Click &quot;Buy Now&quot; to lock your funds in a Soroban escrow contract.</li>
-          <li>The seller delivers your {formatAssetType(trade.asset_type)}.</li>
-          <li>Platform confirms delivery and releases the payment to the seller.</li>
+          <li>{t("step1")}</li>
+          <li>{t("step2", { asset: formatAssetType(trade.asset_type) })}</li>
+          <li>{t("step3")}</li>
         </ol>
       </div>
 

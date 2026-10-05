@@ -3,7 +3,9 @@
 import { useState, type FormEvent } from "react";
 import { readReturnTo } from "../../lib/returnTo";
 import { useTranslations } from "next-intl";
-import Link from "next/link";
+// Format rules live in packages/shared so the client validates exactly what
+// the server's requestOtpSchema validates (issue #283).
+import { isValidPhoneInput } from "@airflex/shared/phone";
 
 // ---------------------------------------------------------------------------
 // Page
@@ -12,20 +14,38 @@ import Link from "next/link";
 export default function SignupPage() {
   const t = useTranslations("Auth");
 
-  const [phone, setPhone] = useState("");
-  const [fieldError, setFieldError] = useState<string | null>(null);
+  const [phone, setPhone]             = useState("");
+  const [fieldError, setFieldError]   = useState<string | null>(null);
+  const [touched, setTouched]         = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading]         = useState(false);
 
   const apiUrl = process.env["NEXT_PUBLIC_API_URL"] ?? "http://localhost:3001";
 
   function validatePhone(value: string): string | null {
     const trimmed = value.trim();
     if (!trimmed) return t("phoneRequired");
-    if (!/^\+?[1-9]\d{9,14}$/.test(trimmed)) {
-      return t("phoneInvalid");
-    }
+    if (!isValidPhoneInput(trimmed)) return t("phoneInvalid");
     return null;
+  }
+
+  // The submit button reflects *format* validity directly, so an invalid
+  // number can never be submitted; the message itself is only revealed once
+  // the field has been touched (blurred or submitted) to avoid shouting at a
+  // user who has not finished typing.
+  const phoneValid = isValidPhoneInput(phone);
+  const visibleError = touched ? fieldError : null;
+
+  function handlePhoneChange(value: string) {
+    setPhone(value);
+    // Once touched, re-validate live so both the message and the submit
+    // button recover the moment the number becomes valid again.
+    if (touched) setFieldError(validatePhone(value));
+  }
+
+  function handlePhoneBlur() {
+    setTouched(true);
+    setFieldError(validatePhone(phone));
   }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
@@ -33,6 +53,7 @@ export default function SignupPage() {
     setServerError(null);
 
     const phoneError = validatePhone(phone);
+    setTouched(true);
     if (phoneError) {
       setFieldError(phoneError);
       return;
@@ -83,7 +104,7 @@ export default function SignupPage() {
           {t("createAccount")}
         </h1>
         <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-          Enter your phone number and we&apos;ll send a 6-digit OTP to verify it.
+          {t("createAccountBody")}
         </p>
       </div>
 
@@ -103,22 +124,20 @@ export default function SignupPage() {
             autoComplete="tel"
             placeholder="+2348012345678"
             value={phone}
-            onChange={(e) => {
-              setPhone(e.target.value);
-              if (fieldError) setFieldError(null);
-            }}
+            onChange={(e) => handlePhoneChange(e.target.value)}
+            onBlur={handlePhoneBlur}
             disabled={loading}
-            aria-describedby={fieldError ? "phone-error" : undefined}
-            aria-invalid={fieldError ? "true" : undefined}
+            aria-describedby={visibleError ? "phone-error" : undefined}
+            aria-invalid={visibleError ? "true" : undefined}
             className={`w-full rounded-xl border px-4 py-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:ring-2 focus:ring-violet-500 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400 dark:text-gray-100 dark:placeholder-gray-500 dark:disabled:bg-gray-700 dark:disabled:text-gray-500 ${
-              fieldError
+              visibleError
                 ? "border-red-400 bg-red-50 focus:ring-red-400 dark:border-red-500 dark:bg-red-900/20"
                 : "border-gray-200 bg-white hover:border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:hover:border-gray-500"
             }`}
           />
-          {fieldError && (
+          {visibleError && (
             <p id="phone-error" role="alert" className="text-xs text-red-600 dark:text-red-400">
-              {fieldError}
+              {visibleError}
             </p>
           )}
         </div>
@@ -136,7 +155,7 @@ export default function SignupPage() {
         {/* Submit */}
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || !phoneValid}
           className="mt-1 inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-violet-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-violet-300 dark:focus-visible:ring-offset-gray-800 dark:disabled:bg-violet-800"
         >
           {loading ? (
@@ -161,12 +180,12 @@ export default function SignupPage() {
       {/* Sign-in link */}
       <p className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
         {t("alreadyHaveAccount")}{" "}
-        <Link
+        <a
           href="/auth/verify"
           className="font-semibold text-violet-600 hover:text-violet-700 focus:outline-none focus-visible:ring-1 focus-visible:ring-violet-500 rounded dark:text-violet-400 dark:hover:text-violet-300"
         >
           {t("signIn")}
-        </Link>
+        </a>
       </p>
     </>
   );
